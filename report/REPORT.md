@@ -1,7 +1,5 @@
 # Báo cáo Lab: Self evolving Agentic
 
-> Sao chép tệp này thành `report/REPORT.md` (đã làm ở Phần 0) và điền dần qua các Phần của lab. Xóa các dòng hướng dẫn dạng trích dẫn (bắt đầu bằng `>`). Văn phong kỹ thuật, ngắn gọn, mọi nhận định đi kèm số liệu hoặc bằng chứng. Trong buổi học: điền mục 1 đến 7 (bản nháp). Sau buổi học: hoàn thiện mục 8 đến 10.
-
 ## 1. Thông tin nhóm và cấu hình
 
 | Họ tên | Mã sinh viên | Phần đóng góp |
@@ -10,12 +8,10 @@
 
 - Nhà cung cấp và mô hình (`LAB_MODEL`, không ghi khóa API), nhiệt độ (`LAB_TEMPERATURE`), `recursion_limit`: OpenAI, `LAB_MODEL=openai:gpt-6-luna`, `LAB_TEMPERATURE=1` (API trả 400 `Unsupported parameter: 'temperature'` khi đặt 0 nên không dùng được giá trị mặc định 0 của mẫu), `recursion_limit=60` (mặc định)
 - Phiên bản Deep Agents (`pip show deepagents`), hệ điều hành, chạy trực tiếp hay trong Docker: deepagents 0.7.21, Python 3.11.15, macOS (Darwin 25.5.0), chạy trực tiếp (không Docker)
-- Số lần chạy tác vụ đã dùng / ngân sách:
-- Commit của tag `freeze`:
+- Số lần chạy tác vụ đã dùng / ngân sách: 9 lần chạy tác tử hoàn tất, đều trên tác vụ học (3 `baseline`, 3 `subagents`, 3 `skills-auto` trước đóng băng), 1 lần gọi curator, vài lần gọi thử rất nhỏ để kiểm tra mô hình; 1 lần chạy đánh giá (`baseline` trên `code-eval`) bị dừng giữa chừng theo yêu cầu, không tạo `run.json` và nhóm chưa thấy điểm nào của tác vụ đánh giá. Không đặt ngân sách cố định; dừng sớm để tiết kiệm token.
+- Commit của tag `freeze`: `9bbee7f` (commit `hypotheses` là `284ad39`, đứng trước tag)
 
 ## 2. Giả thuyết (commit TRƯỚC tag `freeze`, Phần 4.0)
-
-> Dự đoán điều kiện nào đạt điểm cao nhất trên **tác vụ đánh giá** và vì sao. Nêu căn cứ từ phân loại lỗi (mục 4) và từ tài liệu tham khảo. Điền cả ba dòng; `verify_freeze.py` kiểm tra điều này.
 
 - H1 (subagents so với baseline): Trên tác vụ ĐÁNH GIÁ, `subagents` không hơn `baseline` về điểm (chênh điểm trung bình trong khoảng ±0,1, tức cỡ 1 check) nhưng tốn token gấp khoảng 3 đến 5 lần. Căn cứ: trên 3 tác vụ học, `subagents` cho đúng cùng điểm với `baseline` (7/10, 5/8, 6/9; check kỹ thuật 18/18 ở cả hai, check quy ước 0/9 ở cả hai) trong khi token trung bình tăng từ 38.922 lên 167.765 (4,3 lần); lỗi còn lại là quy ước không có trong đề, không phải thiếu khám phá hay thiếu rà soát mà subagent giải quyết; ở `data-learn` việc giao việc còn khẳng định 'no additional Acme reporting convention', củng cố việc bỏ sót. Phù hợp với ghi nhận chi phí đa tác tử cao của bài báo Anthropic về hệ thống nghiên cứu đa tác tử.
 - H2 (skills-auto so với baseline): `skills-auto` đạt điểm trung bình cao nhất trên tác vụ đánh giá nhưng chỉ hơn `baseline` khoảng 0,05 đến 0,15 (1 đến 2 check mỗi tác vụ), và gần như toàn bộ phần tăng đến từ các quy ước đã xuất hiện trong phản hồi của tác vụ học; quy ước mới chỉ có ở tác vụ đánh giá sẽ không được skill giúp. Căn cứ: ở Phần 3.4 trên tác vụ học, check quy ước tăng từ 0/9 lên 3/9 (điểm học trung bình 0,66 lên 0,77); skill đã đọc 3/3 lần chạy nhưng skill dùng cụm 'when required' nên tác tử làm theo đề thay vì skill khi đề không nêu quy ước (`data-learn` vẫn 5/8). Phù hợp với SkillsBench (skill do mô hình tự sinh trung bình không có lợi hoặc lợi nhỏ).
@@ -28,8 +24,6 @@
 3. Từ `task`: "Put full detail in the prompt and state exactly what it should return". Từ `execute`: "You MUST avoid using search commands like find and grep. Instead use the grep, glob tools to search. Use read_file rather than cat/head/tail." System prompt mặc định là chuỗi rỗng (`''`), nên hành vi được định hướng gần như hoàn toàn bởi mô tả công cụ.
 
 ## 4. Đường cơ sở và phân loại lỗi (Phần 2.2)
-
-> Chỉ dùng tác vụ học. Mỗi dòng là một check thất bại.
 
 | Tác vụ | Check thất bại | Nhóm lỗi (A-G) | Bằng chứng (trích ngắn từ `detail` hoặc vết) |
 |---|---|---|---|
@@ -68,37 +62,81 @@ Nhận xét: nhóm E chiếm 9/9 check thất bại của `baseline` (lần ch�
 
 ## 7. Kết quả so sánh (Phần 4.3, 4.4)
 
-> Dán nội dung `report/table.md` và kết quả `python scripts/check_breakdown.py`. Nêu các lần chạy có `error` hoặc `skills_modified = true` (nếu có) và cách xử lý.
+**Phạm vi dữ liệu: chỉ có tác vụ học.** Tác vụ đánh giá và lần chạy chính thức `skills-auto` sau đóng băng chưa được chạy (xem mục 9), nên cột `skills-auto` không xuất hiện trong `report/table.md` và hàng 'evaluation tasks' để trống. `python scripts/verify_freeze.py` báo `checked 0 runs of skill conditions: OK`: kết quả OK này chỉ có nghĩa là commit `hypotheses` (đã điền H1 đến H3) đứng trước tag `freeze` và `skills/` không đổi, vì không có lần chạy `skills-auto` nào để đối chiếu.
+
+Kết quả `python -m lab.compare` (nội dung `report/table.md`):
 
 ```text
-(dán bảng ở đây)
+| Task | baseline | subagents |
+|---|---|---|
+| code-learn | 7/10 | 7/10 |
+| data-learn | 5/8 | 5/8 |
+| logs-learn | 6/9 | 6/9 |
+| **Mean score - learning tasks** | 0.66 | 0.66 |
+| **Mean score - evaluation tasks** | - | - |
+| **Mean tokens per run** | 38,922 | 167,765 |
+| **Runs that read a skill** | 0/3 | 0/3 |
 ```
+
+Kết quả `python scripts/check_breakdown.py`:
+
+```text
+condition     role    technical  house rules  mean tokens  read a skill
+baseline      learn    18/18         0/9           38,922      0/3     
+subagents     learn    18/18         0/9          167,765      0/3
+```
+
+Kết quả `skills-auto` ở Phần 3.4 (chạy TRƯỚC khi đóng băng, đã chuyển sang `results/skills-auto-dev/` nên `lab.compare` không đọc), dùng cùng bộ skill 3 skill như lúc đóng băng, tính từ các `run.json`:
+
+```text
+| Task | baseline | subagents | skills-auto (dev, trước đóng băng) |
+|---|---|---|---|
+| code-learn | 7/10 | 7/10 | 8/10 |
+| data-learn | 5/8 | 5/8 | 5/8 |
+| logs-learn | 6/9 | 6/9 | 8/9 |
+| **Điểm trung bình tác vụ học** | 0.66 | 0.66 | 0.77 |
+| **Check kỹ thuật đạt** | 18/18 | 18/18 | 18/18 |
+| **Check quy ước (`rule_`) đạt** | 0/9 | 0/9 | 3/9 |
+| **Token trung bình mỗi lần chạy** | 38,922 | 167,765 | 59,850 |
+| **Lần chạy có đọc skill** | 0/3 | 0/3 | 3/3 |
+| **Điểm trên 1.000 token** | 0.0171 | 0.0040 | 0.0129 |
+```
+
+Không có lần chạy nào có `error`; `skills_modified` là `false` ở mọi lần chạy `skills-auto-dev`. Điểm trên 1.000 token = điểm trung bình chia cho token trung bình (nghìn).
 
 ## 8. Phân tích
 
-> Trả lời từng câu bằng số liệu từ mục 7 và bằng chứng từ vết. Kết quả âm hoặc không có khác biệt vẫn hợp lệ nếu được phân tích tốt.
+Mọi số liệu dưới đây là của 3 tác vụ học (mỗi cấu hình chạy một lần). Tác vụ đánh giá chưa được chạy, nên các phần cần dữ liệu đánh giá được ghi rõ là không có dữ liệu, và H1 đến H3 (đã commit trước tag) chưa được kiểm chứng.
 
-1. So với `baseline`, điều kiện nào cải thiện điểm tác vụ **học**? Điều kiện nào cải thiện điểm tác vụ **đánh giá**? Có điều kiện nào cải thiện tác vụ học nhưng không cải thiện tác vụ đánh giá? Nếu có, đó là dấu hiệu gì?
-2. Tách điểm thành check kỹ thuật và check quy ước (`rule_`). Skill do curator sinh giúp nhóm check nào? Check quy ước **mới** của tác vụ đánh giá có được skill giúp không, và vì sao?
-3. Dựa vào vết và `skills_read`, giải thích một check mà skill giúp đạt và một check mà skill không giúp (skill chưa được đọc, đọc nhưng không làm theo, skill thiếu hoặc sai).
-4. Chi phí: so sánh số token trung bình giữa các điều kiện. Điều kiện nào có hiệu quả tốt nhất theo điểm trên mỗi token? Đa tác tử có đáng chi phí trong thí nghiệm này không?
-5. Có dấu hiệu rò rỉ dữ liệu hoặc quá khớp nào trong skill sinh ra không? Nhóm đã phòng tránh như thế nào?
-6. Nhiễu: so sánh điểm tác vụ học của cùng bộ skill ở Phần 3.4 (đã sao lưu) và sau đóng băng. Chênh lệch bao nhiêu? Nó cho biết điều gì về độ tin cậy của các chênh lệch trong bảng ở mục 7?
+1. Điểm tác vụ học: `baseline` 0.66, `subagents` 0.66 (đúng bằng `baseline` ở cả 3 tác vụ), `skills-auto` 0.77 (trước đóng băng, +0.11). Tác vụ đánh giá: không có dữ liệu, nên chưa thể nói có điều kiện nào cải thiện tác vụ học mà không chuyển sang tác vụ đánh giá (dấu hiệu quá khớp); chỉ có thể nói cải thiện của `skills-auto` mới được đo trên chính tập mà curator đã học phản hồi.
+2. Check kỹ thuật đạt 18/18 ở `baseline`, 18/18 ở `subagents` và 18/18 ở `skills-auto`, nên skill không có gì để giúp ở nhóm này. Check quy ước (`rule_`): 0/9, 0/9 và 3/9. Skill giúp 3 check: `rule_type_hints` (`code-learn`), `rule_service_names` và `rule_sorted_errors` (`logs-learn`). Check quy ước mới của tác vụ đánh giá: không có dữ liệu; theo mục 6, skill chỉ ghi lại các quy tắc đã thấy trong phản hồi của tác vụ học nên không có nội dung nào dành cho một quy ước chưa từng thấy.
+3. Skill giúp: `rule_service_names` ở `logs-learn`: `skills_read` = 2, skill `structured-log-exports` được đọc và có bước 'normalize service names to lowercase and replace hyphens with underscores', câu trả lời cuối nói 'Service names are normalized and records are sorted by service and timestamp', check đạt. Skill không giúp: `rule_money_in_cents` ở `data-learn`: skill `tabular-data-contracts` được đọc (bước 'use integer cents when the contract requires cents') nhưng vết cho thấy `write_file` vẫn ghi `"north_q1_revenue": 3130.24` và chỉ 5 khóa, tức đọc nhưng làm theo chữ 'number' của đề vì điều kiện 'when the contract requires' không được thỏa. Ngoài ra `rule_changelog` và `rule_regression_tests` trượt vì skill nói 'prescribed bullet format' và 'stated test-file requirements' mà không nêu định dạng, tác tử tự đặt (1 bullet không theo `- fix(<hàm>):`, test vào `tests/test_edge_cases.py`), và `rule_schema_header` trượt vì skill không nêu giá trị `schema_version`/`generated_by`. Skill thiếu hoặc mơ hồ là nguyên nhân chính, không phải việc skill không được đọc (đọc 3/3 lần chạy).
+4. Chi phí (tác vụ học): token trung bình `baseline` 38,922, `subagents` 167,765 (4.3 lần), `skills-auto` 59,850 (1.5 lần). Điểm trên 1.000 token: 0.0171, 0.0040, 0.0129, tức `baseline` hiệu quả nhất theo chỉ số này, `skills-auto` đứng sau, `subagents` thấp nhất. Trên tập học, đa tác tử không đáng chi phí: cùng điểm với `baseline` nhưng tốn 4.3 lần token. Chi phí cao hơn của `skills-auto` đến từ việc đọc skill (thêm lượt gọi công cụ) và tác tử làm thêm việc (ví dụ thêm test, sửa changelog).
+5. Rò rỉ dữ liệu: không thấy. Curator chỉ đọc các lần chạy có `role == "learn"` của `baseline`; `validate_skill` loại skill chứa định danh của tác vụ đánh giá (cả 3 skill đều qua); nhóm không sửa tay skill và chưa mở tệp của tác vụ đánh giá. Quá khớp: có nguy cơ về cấu trúc, vì mọi quy tắc cụ thể trong skill (số cent, đổi gạch ngang thành gạch dưới, sắp xếp theo dịch vụ rồi thời gian, type hint) lấy nguyên từ phản hồi của tác vụ học; việc nó chuyển được sang tác vụ đánh giá hay không thì chưa được đo.
+6. Nhiễu: không đo được. Cần so điểm Phần 3.4 với điểm sau đóng băng của cùng bộ skill, nhưng lần chạy sau đóng băng chưa được thực hiện. Dữ liệu duy nhất liên quan: `baseline` và `subagents` cho điểm giống hệt nhau ở cả 3 tác vụ (và cùng 9 check quy ước trượt), cho thấy kết quả trên tập học khá ổn định giữa hai cấu hình rất khác nhau, nhưng đây là hai điều kiện khác nhau chứ không phải chạy lặp, nên không thay được ước lượng nhiễu. Với `LAB_TEMPERATURE=1` và một lần chạy mỗi ô, chênh lệch một check (0,1 điểm tác vụ) cần được đọc là nằm trong khả năng nhiễu.
 
 ## 9. Hạn chế và tính hợp lệ
 
-> Nêu ít nhất 3 hạn chế và ảnh hưởng của từng hạn chế đến kết luận (ví dụ: chỉ 3 tác vụ mỗi vai trò, mỗi cấu hình chạy một lần, nhiễu của mô hình, tác vụ do giảng viên thiết kế sẵn quy ước, chỉ một mô hình).
-
-1.
-2.
-3.
+1. **Chưa chạy tác vụ đánh giá** (dừng theo quyết định tiết kiệm token). Ảnh hưởng lớn nhất: H1 đến H3 chưa được kiểm chứng, không có số liệu để kết luận về tổng quát hóa, quá khớp hay hiệu quả của quy ước mới; mọi nhận định về `skills-auto` chỉ áp dụng cho tập học mà curator đã nhìn thấy phản hồi. Ngoài ra không có lần chạy chính thức `skills-auto` sau đóng băng nên `verify_freeze.py` chỉ xác nhận thứ tự commit, tag và `skills/`, không xác nhận được việc các lần chạy dùng đúng skill đã đóng băng.
+2. **Số mẫu rất nhỏ và một lần chạy mỗi ô**: 3 tác vụ học, mỗi cấu hình một lần. Một check chênh lệch bằng khoảng 0,1 điểm tác vụ, nên chênh lệch `skills-auto` +0,11 so với `baseline` tương đương 3 check trên 27 (18 lên 21 check đạt), chưa đủ để loại trừ nhiễu.
+3. **`temperature` buộc phải bằng 1** (API từ chối 0) và nhiễu chưa được đo (không có lần chạy lặp): kết quả có thể thay đổi giữa các lần chạy, làm yếu mọi so sánh ở mức một check.
+4. **Một mô hình duy nhất** (`openai:gpt-6-luna`): kết luận về việc tác tử làm theo đề hơn skill, hay về mức token của subagent, có thể không đúng với mô hình khác. Vết chứa khối reasoning đã mã hóa nên lý do ra quyết định của tác tử chỉ suy ra được từ các lệnh gọi công cụ.
+5. **Tác vụ do giảng viên thiết kế với quy ước có sẵn**: phần lớn lỗi là quy ước không có trong đề, nên cải thiện của skill chủ yếu là 'nhớ lại quy ước đã thấy trong phản hồi' chứ không phải năng lực tổng quát; điều này làm kết quả `skills-auto` trên tập học có vẻ tốt hơn mức chuyển giao thực tế.
+6. **Curator chỉ chạy một lần** và có tính ngẫu nhiên: bộ 3 skill có thể khác ở lần chạy khác; không có so sánh giữa các lần.
 
 ## 10. Kết luận
 
-> Tối đa 5 câu. Chỉ khẳng định điều số liệu hỗ trợ. Nêu một đề xuất cải tiến tiếp theo.
+Trên 3 tác vụ học, cả 9 check thất bại của `baseline` đều là quy ước tổ chức không có trong đề, còn check kỹ thuật đạt 18/18 ở cả ba điều kiện. `subagents` cho điểm bằng `baseline` (0,66) nhưng tốn 4,3 lần token nên không đáng chi phí trên tập này. Skill do curator sinh nâng check quy ước từ 0/9 lên 3/9 (điểm học 0,66 lên 0,77, một lần chạy, trước đóng băng), nhưng cụm điều kiện 'when required' khiến tác tử làm theo đề thay vì skill khi đề không nêu quy ước. Vì tác vụ đánh giá chưa được chạy, chưa thể kết luận về tổng quát hóa hay quá khớp và H1 đến H3 chưa được kiểm chứng. Đề xuất: sửa prompt của curator để viết quy tắc cụ thể, không điều kiện (nêu tên khóa, tên tệp, định dạng mà phản hồi đã phát biểu), rồi chạy tác vụ đánh giá sau tag `freeze` ít nhất 2 lần mỗi cấu hình để đo nhiễu.
 
 ## Phụ lục
 
 - Lệnh đã chạy (theo thứ tự):
-- Thử thách mở rộng (nếu có): hướng chọn, kết quả, nhận xét.
-- Ghi chú khác:
+  1. `/opt/homebrew/bin/python3.11 -m venv .venv && source .venv/bin/activate && pip install -e .`; `cp .env.example .env`; `mkdir -p report && cp REPORT_TEMPLATE.md report/REPORT.md`; `pytest tests/test_01_provided.py` (15 passed).
+  2. Cài đặt `subagents.py`, `agent.py`, `runner.py`, `curator.py`; `pytest` (32 passed: 15 + 9 + 6 + 2); `python scripts/tour.py`.
+  3. `python -m lab.runner --condition baseline --tasks data-learn`; `python -m lab.runner --condition baseline --tasks code-learn logs-learn`; `python -m lab.runner --condition subagents --tasks learn`.
+  4. `python -m lab.curator` (1 lần); `python -m lab.runner --condition skills-auto --tasks learn`.
+  5. `mv results/skills-auto results/skills-auto-dev`; commit `hypotheses`; `git commit --allow-empty -m "freeze skills" && git tag freeze`; `python scripts/verify_freeze.py` (OK, 0 lần chạy được kiểm tra).
+  6. `python -m lab.runner --condition baseline --tasks eval` (bắt đầu rồi bị dừng trước khi xong tác vụ đầu tiên, theo yêu cầu; không có kết quả được lưu); các lệnh `--condition subagents --tasks eval` và `--condition skills-auto --tasks all` chưa được chạy.
+  7. `python -m lab.compare > report/table.md`; `python scripts/check_breakdown.py`; `python scripts/verify_freeze.py`.
+- Thử thách mở rộng (nếu có): không thực hiện.
+- Ghi chú khác: (a) `final_message` trong `run.json` lưu nguyên danh sách khối nội dung của mô hình (kể cả khối reasoning mã hóa) nên một số `run.json` dài; điểm, token và các số đếm không bị ảnh hưởng. (b) `results/skills-auto-dev/` là bản sao lưu Phần 3.4 theo GUIDE 4.2; `lab.compare` bỏ qua thư mục này. (c) Để chạy tiếp tác vụ đánh giá một cách hợp lệ: giữ nguyên `skills/` và tag `freeze`, chạy các lệnh ở mục 6 trên, rồi `python scripts/verify_freeze.py` và `python -m lab.compare > report/table.md`.
