@@ -4,10 +4,34 @@ Pseudo-code: guides/pseudocode/04_curator.md
 Kiểm tra:    pytest tests/test_04_curator.py
 Chạy thật:   python -m lab.curator
 """
+import json
 import re
 from pathlib import Path
 
-from .tasks import eval_markers   # có sẵn: định danh của tác vụ đánh giá, tính lúc chạy
+from .model import make_model
+from .tasks import ROOT, eval_markers   # có sẵn: định danh của tác vụ đánh giá, tính lúc chạy
+
+CURATOR_PROMPT = """You write SKILLS for a coding and data-analysis agent.
+Below are the failed checks (name and the review bot's feedback) and the end of the execution trace of the agent's runs.
+Find the general PROCESS errors (not specific answers) and write at most {max_skills} short skills that help the agent
+avoid them on a NEW task of the same kind.
+
+Rules:
+- A skill must be general: do not mention task ids, file names that exist only in one task, answers or numbers.
+  Organisation conventions stated in the feedback (output file names, JSON keys, units, ordering) may be written as rules.
+- Each skill has YAML frontmatter with `name` (lower-case, hyphens) and `description` (one sentence starting with "Use when ..."
+  that names a broad kind of task), then at most 40 lines of imperative instructions (a numbered checklist works well).
+- Output format, exactly, character for character:
+=== SKILL: <name> ===
+---
+name: <name>
+description: <when to use it>
+---
+<body>
+=== END ===
+
+{runs}
+"""
 
 # ---- CÓ SẴN, KHÔNG SỬA: kiểm tra và tách khối skill (phần dễ sai và liên quan bảo mật) ----------------
 SAFE_NAME = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
@@ -68,7 +92,44 @@ def curate_skills(results_dir="results", source_condition="baseline", out_dir=No
     model mặc định: make_model() (lab.model).
     Trả về: danh sách đường dẫn SKILL.md đã ghi.
     """
-    raise NotImplementedError("TODO: cài đặt curate_skills (xem guides/pseudocode/04_curator.md)")
+    results_dir = Path(results_dir)
+    out_dir = Path(out_dir) if out_dir is not None else ROOT / "skills" / "auto"
+
+    runs = []
+    for run_file in sorted((results_dir / source_condition).glob("*/run.json")):
+        r = json.loads(run_file.read_text(encoding="utf-8"))
+        if r.get("role") != "learn":                      # tuyệt đối không dùng dữ liệu tác vụ đánh giá
+            continue
+        trace_file = run_file.parent / "trace.md"
+        trace = trace_file.read_text(encoding="utf-8")[-6000:] if trace_file.exists() else ""
+        failed = [(c["name"], c.get("detail", "")) for c in r.get("checks", []) if not c.get("passed")]
+        runs.append({"task": r.get("task", run_file.parent.name), "failed": failed, "trace": trace})
+
+    if not any(run["failed"] for run in runs):
+        print("warning: no failed check in the learning tasks; curator not called")
+        return []
+
+    sections = []
+    for run in runs:
+        if not run["failed"]:
+            continue
+        failed = "\n".join(f"- {name}: {detail}" for name, detail in run["failed"])
+        sections.append(f"## Run of learning task {run['task']}\nFailed checks (name: review bot feedback):\n{failed}\n\n"
+                        f"End of the execution trace:\n{run['trace']}")
+    prompt = CURATOR_PROMPT.format(max_skills=max_skills, runs="\n\n".join(sections))
+
+    model = model if model is not None else make_model()
+    reply = model.invoke(prompt).content
+
+    written = []
+    for name, text in parse_skill_blocks(reply):
+        if len(written) >= max_skills or validate_skill(text, expected_name=name):
+            continue
+        path = out_dir / name / "SKILL.md"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(text + "\n", encoding="utf-8")
+        written.append(path)
+    return written
 
 
 if __name__ == "__main__":
